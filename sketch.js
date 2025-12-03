@@ -3,18 +3,26 @@ let textContent = [
 ];
 
 let words = [];
-let currentNumber = 150;
-let nextNumber = 149;
+let currentNumber = 9;
+let nextNumber = 8;
 let transitionProgress = 0;
 let isTransitioning = false;
 let lastNumberChange = 0;
-let numberDuration = 1500;
-let transitionDuration = 600;
+let numberDuration = 2000;
+let transitionDuration = 1200;
 
 let currentMask, nextMask;
+let currentPixels, nextPixels;
+let bgImage;
+
+// Preload background image
+//function preload() {
+  //  bgImage = loadImage('crumpled-white-paper-texture.jpg');
+//}
 
 function setup() {
     createCanvas(windowWidth, windowHeight);
+    pixelDensity(1);
     smooth();
     frameRate(60);
     parseText();
@@ -67,7 +75,7 @@ function parseText() {
                 baseY: y,
                 offsetX: 0,
                 offsetY: 0,
-                velocity: { x: 0, y: 0 }
+                targetOffsetX: 0
             });
             xPos += w;
         });
@@ -105,39 +113,81 @@ function justifyLine(lineWords, startX, yPos, maxWidth, isLastLine) {
             baseY: yPos,
             offsetX: 0,
             offsetY: 0,
-            velocity: { x: 0, y: 0 }
+            targetOffsetX: 0
         });
         x += w + spaceWidth;
     });
 }
 
 function createNumberMasks() {
+    if (currentMask) currentMask.remove();
     currentMask = createGraphics(width, height);
+    currentMask.pixelDensity(1);
     currentMask.textFont('Helvetica');
     currentMask.textSize(height * 0.85);
     currentMask.textAlign(CENTER, CENTER);
     currentMask.fill(255);
     currentMask.text(currentNumber.toString(), width / 2, height / 2);
+    currentMask.loadPixels();
+    currentPixels = currentMask.pixels;
     
+    if (nextMask) nextMask.remove();
     nextMask = createGraphics(width, height);
+    nextMask.pixelDensity(1);
     nextMask.textFont('Helvetica');
     nextMask.textSize(height * 0.85);
     nextMask.textAlign(CENTER, CENTER);
     nextMask.fill(255);
     nextMask.text(nextNumber.toString(), width / 2, height / 2);
+    nextMask.loadPixels();
+    nextPixels = nextMask.pixels;
 }
 
-function updateNumberMask(num, mask) {
+function updateNumberMask(num, mask, isCurrentMask) {
     mask.clear();
     mask.textFont('Helvetica');
     mask.textSize(height * 0.85);
     mask.textAlign(CENTER, CENTER);
     mask.fill(255);
     mask.text(num.toString(), width / 2, height / 2);
+    mask.loadPixels();
+    
+    if (isCurrentMask) {
+        currentPixels = mask.pixels;
+    } else {
+        nextPixels = mask.pixels;
+    }
+}
+
+// Smooth easing function
+function easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
 function draw() {
-    background(26, 26, 26);
+    // Draw background image
+    if (bgImage) {
+        // Cover the canvas while maintaining aspect ratio
+        let imgRatio = bgImage.width / bgImage.height;
+        let canvasRatio = width / height;
+        let drawWidth, drawHeight, drawX, drawY;
+        
+        if (canvasRatio > imgRatio) {
+            drawWidth = width;
+            drawHeight = width / imgRatio;
+            drawX = 0;
+            drawY = (height - drawHeight) / 2;
+        } else {
+            drawHeight = height;
+            drawWidth = height * imgRatio;
+            drawX = (width - drawWidth) / 2;
+            drawY = 0;
+        }
+        
+        image(bgImage, drawX, drawY, drawWidth, drawHeight);
+    } else {
+        background(245, 245, 245);
+    }
     
     let currentTime = millis();
     let timeSinceChange = currentTime - lastNumberChange;
@@ -146,12 +196,9 @@ function draw() {
         isTransitioning = true;
         transitionProgress = 0;
 
+        // Set target offset for smooth horizontal movement
         words.forEach(word => {
-            // Alle Wörter verschieben sich nach rechts
-            word.velocity.x = random(10, 18);
-
-            // Keine vertikale Bewegung - Wörter bleiben auf ihrer Linie
-            word.velocity.y = 0;
+            word.targetOffsetX = random(30, 60);
         });
     }
     
@@ -163,39 +210,34 @@ function draw() {
             transitionProgress = 0;
             currentNumber = nextNumber;
 
-            // Wenn 0 erreicht, von vorne anfangen
             if (currentNumber <= 0) {
-                nextNumber = 150;
+                nextNumber = 9;
             } else {
                 nextNumber = currentNumber - 1;
             }
 
-            updateNumberMask(currentNumber, currentMask);
-            updateNumberMask(nextNumber, nextMask);
+            updateNumberMask(currentNumber, currentMask, true);
+            updateNumberMask(nextNumber, nextMask, false);
             lastNumberChange = currentTime;
 
             words.forEach(word => {
                 word.offsetX = 0;
                 word.offsetY = 0;
-                word.velocity.x = 0;
-                word.velocity.y = 0;
+                word.targetOffsetX = 0;
             });
         } else {
-            let easeOut = 1 - pow(1 - transitionProgress, 3);
-            let easeIn = pow(transitionProgress, 3);
-            
+            // Smooth animation using easing
             words.forEach(word => {
                 if (transitionProgress < 0.5) {
-                    // Erste Hälfte: Beschleunigung nach rechts
-                    let moveProgress = transitionProgress * 2;
-                    word.offsetX += word.velocity.x * (1 - moveProgress) * 0.8;
-                    word.offsetY += word.velocity.y * (1 - moveProgress) * 0.8;
+                    // First half: smooth move right
+                    let t = transitionProgress * 2;
+                    let eased = easeInOutCubic(t);
+                    word.offsetX = word.targetOffsetX * eased;
                 } else {
-                    // Zweite Hälfte: Sanfte Rückkehr zur Originalposition
-                    let returnProgress = (transitionProgress - 0.5) * 2;
-                    let easeReturn = pow(returnProgress, 3);
-                    word.offsetX *= (1 - easeReturn * 0.2);
-                    word.offsetY *= (1 - easeReturn * 0.2);
+                    // Second half: smooth return
+                    let t = (transitionProgress - 0.5) * 2;
+                    let eased = easeInOutCubic(t);
+                    word.offsetX = word.targetOffsetX * (1 - eased);
                 }
             });
         }
@@ -214,54 +256,56 @@ function draw() {
         let overlapsCurrent = false;
         
         if (isTransitioning) {
-            overlapsCurrent = checkOverlapPrecise(word, drawX, drawY, currentMask);
-            overlapsNext = checkOverlapPrecise(word, drawX, drawY, nextMask);
-            
-            let fadeOut = 1 - transitionProgress;
-            let fadeIn = transitionProgress;
-            
-            if (overlapsCurrent && overlapsNext) {
-                fill(255);
-            } else if (overlapsCurrent) {
-                fill(255, 255, 255, 255 * fadeOut);
-            } else if (overlapsNext) {
-                fill(255, 255, 255, 255 * fadeIn);
+            overlapsCurrent = checkOverlapFast(word, drawX, drawY, currentPixels);
+            overlapsNext = checkOverlapFast(word, drawX, drawY, nextPixels);
+
+            if (overlapsCurrent || overlapsNext) {
+                // Calculate combined opacity for smoother transition
+                let currentAlpha = overlapsCurrent ? (1 - transitionProgress) : 0;
+                let nextAlpha = overlapsNext ? transitionProgress : 0;
+                let combinedAlpha = Math.max(currentAlpha, nextAlpha);
+
+                // Boost the alpha to prevent too much fading
+                combinedAlpha = Math.min(1, combinedAlpha + 0.3);
+
+                fill(0, 0, 0, 255 * combinedAlpha);
             } else {
-                fill(80, 80, 80);
+                fill(180, 180, 180);
             }
         } else {
-            overlapsCurrent = checkOverlapPrecise(word, drawX, drawY, currentMask);
+            overlapsCurrent = checkOverlapFast(word, drawX, drawY, currentPixels);
             if (overlapsCurrent) {
-                fill(255);
+                fill(0);
             } else {
-                fill(80, 80, 80);
+                fill(180, 180, 180);
             }
         }
         
         text(word.text, drawX, drawY);
     });
     
-    fill(255, 50);
+    // Small number indicator
+    fill(0, 30);
     textFont('Helvetica');
     textSize(24);
     textAlign(RIGHT, TOP);
     text(currentNumber, width - 20, 20);
 }
 
-function checkOverlapPrecise(word, drawX, drawY, mask) {
+function checkOverlapFast(word, drawX, drawY, pixels) {
     let wordHeight = 18;
-    let samples = 5;
+    let samples = 4;
     
     for (let i = 0; i < samples; i++) {
-        let sampleX = drawX + (word.w * i / samples);
-        let sampleY = drawY - wordHeight / 2;
+        let sampleX = Math.floor(drawX + (word.w * i / samples));
+        let sampleY = Math.floor(drawY - wordHeight / 2);
         
-        for (let j = 0; j < 3; j++) {
-            let checkY = sampleY + (wordHeight * j / 2);
+        for (let j = 0; j < 2; j++) {
+            let checkY = Math.floor(sampleY + (wordHeight * j));
             
             if (sampleX >= 0 && sampleX < width && checkY >= 0 && checkY < height) {
-                let px = mask.get(sampleX, checkY);
-                if (px[0] > 128) {
+                let idx = (checkY * width + sampleX) * 4;
+                if (pixels[idx] > 128) {
                     return true;
                 }
             }
