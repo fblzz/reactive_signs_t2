@@ -25,9 +25,9 @@ function parseText() {
     let margin = 40;
     let x = margin;
     let y = margin + 18;
-    let maxWidth = width - margin * 2;
-    let fontSize = 18;
-    let lineHeight = fontSize;
+    let maxWidth = width - margin * 2; 
+    let fontSize = 22;
+    let lineHeight = fontSize * 1.5;
     
     textFont('Times New Roman');
     textSize(fontSize);
