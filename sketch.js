@@ -12,12 +12,20 @@ let transitionDuration = 500;
 let currentMask, nextMask;
 let currentPixels, nextPixels;
 
+<<<<<<< HEAD
 let countdownValue = 9; // Startwert des Countdowns
+=======
+// Preload background image
+function preload() {
+  bgImage = loadImage('crumpled-white-paper-texture.jpg');
+}
+>>>>>>> dac74c2f154082d6564f05f4bfeb405ff764d82d
 
 function setup() {
     createCanvas(windowWidth, windowHeight);
     pixelDensity(1);
     frameRate(60);
+<<<<<<< HEAD
 
     // Lokaler Fallback mit echtem Countdown
     window.poster = {
@@ -129,6 +137,15 @@ function windowResized() {
     // poster.vw neu berechnen
     poster.vw = width / 100;
 
+=======
+    
+    // Enable frequent pixel reads for better performance
+    let canvas = document.querySelector('canvas');
+    if (canvas && canvas.getContext) {
+        canvas.getContext('2d', { willReadFrequently: true });
+    }
+    
+>>>>>>> dac74c2f154082d6564f05f4bfeb405ff764d82d
     parseText();
     createNumberMasks();
 }
@@ -228,6 +245,8 @@ function createNumberMasks() {
     if (currentMask) currentMask.remove();
     currentMask = createGraphics(width, height);
     currentMask.pixelDensity(1);
+    // Enable willReadFrequently on the graphics context
+    currentMask.canvas.getContext('2d', { willReadFrequently: true });
     currentMask.textFont('Helvetica');
     currentMask.textSize(height * 0.85);
     currentMask.textAlign(CENTER, CENTER);
@@ -239,6 +258,8 @@ function createNumberMasks() {
     if (nextMask) nextMask.remove();
     nextMask = createGraphics(width, height);
     nextMask.pixelDensity(1);
+    // Enable willReadFrequently on the graphics context
+    nextMask.canvas.getContext('2d', { willReadFrequently: true });
     nextMask.textFont('Helvetica');
     nextMask.textSize(height * 0.85);
     nextMask.textAlign(CENTER, CENTER);
@@ -252,6 +273,8 @@ function updateNumberMask(num, mask, isCurrentMask) {
     if (!mask) return; // Sicherheitsnetz
 
     mask.clear();
+    // Ensure willReadFrequently is set
+    mask.canvas.getContext('2d', { willReadFrequently: true });
     mask.textFont('Helvetica');
     mask.textSize(height * 0.85);
     mask.textAlign(CENTER, CENTER);
